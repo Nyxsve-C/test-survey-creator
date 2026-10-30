@@ -2,12 +2,8 @@
 window.Defaults = {
   TEST_TYPES: [
     'Smoke Test',
-    'AT',
     'MAT',
-    'NFT',
-    'DV',
-    'Regression Test',
-    'Crossbrowser Test'
+    'AT'
   ],
 
   ELEMENT_TYPES: [

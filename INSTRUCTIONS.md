@@ -27,7 +27,7 @@ Terminology: "Checks" and "Actions" mean the same thing. The Excel column and th
 Action fields: testType (separate), description = the action text (required), expectedResult (separate, optional), order.
 
 **GUI rule:** every functionality (including "Other" type and any with no default checks) must have, as its **last** action: test type **AT**, text **"Verify the GUI satisfies the requirements"**. It is added automatically when a functionality is created (after any default checks) and is **locked**: it cannot be edited, deleted, or reordered. New actions are always inserted before it. The Test Survey validation reports an error if a functionality lacks it or it is not last.
-Test types: Smoke Test, AT, MAT, NFT, DV, Regression Test, Crossbrowser Test.
+Test types: Smoke Test, MAT, AT.
 
 ## 4. Output template (current, confirmed by image)
 4 columns only: **Test Type | Functionality | Actions | Expected Result**

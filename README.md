@@ -21,7 +21,7 @@ During QA and functional testing training, creating a structured **Test Survey**
 3. **Modules** — Manage application modules (each module exports as a separate worksheet tab).
 4. **Submodules** — Manage submodules within each module (each submodule exports as a colored header row spanning the table).
 5. **Functionalities** — Add functionalities by selecting an **Element Type** (`Text field`, `Button`, `Link`, `Checkbox`, `Radio button`, `Dropdown`, `Other`) and entering its name. Default checks and the mandatory locked GUI check are generated automatically.
-6. **Actions (Checks)** — Assign a **Test Type** (`Smoke Test`, `AT`, `MAT`, `NFT`, `DV`, `Regression Test`, `Crossbrowser Test`) from the dropdown for each check, add custom checks, or edit optional Expected Results.
+6. **Actions (Checks)** — Assign a **Test Type** (`Smoke Test`, `MAT`, `AT`) from the dropdown for each check, add custom checks, or edit optional Expected Results.
 7. **Templates** — View, edit, add, or reset the default checks seeded from `default_checks.md` for each element type.
 8. **Test Survey ★ (Complex Business Logic)** — Multi-rule validation engine, export configuration, live HTML worksheet preview, and styled ExcelJS `.xlsx` generation.
 
