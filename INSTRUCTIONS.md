@@ -1,91 +1,107 @@
-# TestSurvey Builder — Project Instructions (living document)
+# TestSurvey Builder — Project Instructions & Specification
 
 ## 1. Purpose
-Web app for a functional-testing (QA) training project. It speeds up creating the **Test Survey** Excel document.
-Training workflow: (1) decompose app into modules → (2) decompose modules into functionalities → (3) create all checks per functionality → (4) **build the Test Survey Excel**. The app mainly automates step 4 and organizes steps 1–3.
+Web application for functional-testing (QA) training and practice. It speeds up creating the **Test Survey** Excel (`.xlsx`) document.
 
-## 2. Requirements
-- More than 5 modules (app sections); one section with complex business logic (the Test Survey export).
-- Mentor opens it via a link → deploy to **GitHub Pages**.
-- Stack: **plain HTML/CSS/JS** (no framework, no build), **ExcelJS** (CDN) for export, **localStorage** for data.
+Training workflow:
+1. Decompose the application into testing **Modules** and **Submodules**
+2. Decompose each submodule into specific **Functionalities**
+3. Create all possible **Actions (Checks)** per functionality
+4. **Build and export the Test Survey Excel workbook**
 
-## 3. Data hierarchy
-Project → Module → Submodule → Functionality → Action
+The app organizes steps 1–3, auto-generates standard checks, and automates step 4.
 
-| Level | In Excel output |
+---
+
+## 2. Core Technical & Functional Requirements
+- **8 navigation modules** (exceeds the `> 5` modules requirement) and one complex business-logic section (**Test Survey** validation, preview, and Excel export).
+- **Accessible via public link**: Hosted on **GitHub Pages** (`https://nyxsve-c.github.io/test-survey-creator/`) from `https://github.com/Nyxsve-C/test-survey-creator.git`.
+- **Tech Stack**: Plain **HTML / CSS / JS** (zero build step, no framework), **ExcelJS 4.4.0** (via CDN) for styled `.xlsx` generation, and **`localStorage`** (`tsb_data_v1`) for persistence.
+- **Branding**:
+  - Page `<title>` and sidebar `.brand-title`: **`TestSurvey Builder`** (no subtitle).
+  - Favicon (`favicon.svg`) and sidebar `.brand-icon`: dark-teal circle (`#0D5963`) with light-teal border and checkmark (`#B2DFDB`).
+
+---
+
+## 3. Data Hierarchy & Business Rules
+
+`Project → Module → Submodule → Functionality → Action (Check)`
+
+| Hierarchy Level | Excel Output Mapping |
 |---|---|
-| Project | File name |
-| Module | One sheet tab (e.g. "Front End") |
-| Submodule | Colored (light teal) header row, merged across A–D |
-| Functionality | Column B, shown only on first action row of its group |
-| Action (check) | One row: Test Type (A), Action text (C), Expected Result (D) |
+| **Project** | Workbook file name (`Test Survey - {ProjectName}.xlsx`) |
+| **Module** | One worksheet tab per module (e.g., `"Front End"`, `"General mobile checks"`) |
+| **Submodule** | Colored (`#7FAEC0`) group header row spanning columns A–D, with title in Column B |
+| **Functionality** | Column B (`Functionality`), vertically merged across all action rows of that functionality |
+| **Action (Check)** | One row: **Test Type** (Col A), **Actions** check text (Col C), **Expected Result** (Col D) |
 
-Terminology: "Checks" and "Actions" mean the same thing. The Excel column and the app keep the name **"Actions"**; "checks" is just how the user refers to them.
+### Terminology & Field Separation
+- **"Checks" and "Actions" mean the same thing.** The Excel column header and the app navigation use **"Actions"**; "checks" is how testers refer to them.
+- **A check/action is only the text in Column C (`Actions`).**
+- **Test Type** (Col A) and **Expected Result** (Col D, optional) are separate fields, never embedded inside the check text.
 
-**A check/action is only the text in the "Actions" column (C).** Test Type (A) and Expected Result (D) are separate fields, not part of the check text.
+### Check Text Formatting Rule
+- Every check must begin with **`"Verify "`** and must **not** end with a period (`.`).
+- This rule is enforced both on all seeded checks (`default_checks.md` and `mobile_default_module.md`) and on any check added or edited by the user (`Defaults.formatCheckText()`).
 
-Action fields: testType (separate), description = the action text (required), expectedResult (separate, optional), order.
+### Test Types (Dropdown)
+- Allowed options (only these 3): **`Smoke Test`**, **`MAT`**, **`AT`**.
+- Default checks are created **without a Test Type** (blank); the user selects the Test Type from a dropdown (either row-by-row or using the bulk-fill helpers per Functionality or per Module).
+- **Export is blocked** (validation error) if any check in the selected modules has a blank Test Type.
 
-**GUI rule:** every functionality (including "Other" type and any with no default checks) must have, as its **last** action: test type **AT**, text **"Verify the GUI satisfies the requirements"**. It is added automatically when a functionality is created (after any default checks) and is **locked**: it cannot be edited, deleted, or reordered. New actions are always inserted before it. The Test Survey validation reports an error if a functionality lacks it or it is not last.
-Test types: Smoke Test, MAT, AT.
+### Mandatory Locked GUI Check Rule
+- Every UI functionality (including `"Other"` and any functionality with 0 default checks) automatically receives, as its **last** action:
+  - **Test Type**: `AT`
+  - **Action text**: `"Verify the GUI satisfies the requirements"`
+  - **Locked**: `true` (cannot be edited, deleted, or moved; new actions are always inserted before it).
+- **Exception for Mobile General Checks**: Functionalities auto-generated inside the **"General mobile checks"** module represent system/device-level checks (`skipGuiCheck: true`) and do **not** have the locked GUI check appended.
 
-## 4. Output template (current, confirmed by image)
-4 columns only: **Test Type | Functionality | Actions | Expected Result**
-- Row 1: header, dark teal (#0D5963), white bold text.
-- Submodule rows: light teal (#B2DFDB), name in col A, merged A–D.
-- Data rows: white; wrapped text; header row frozen.
-- Test Type column has a dropdown (data validation) with the test types.
-- Expected Result may be blank.
-- Reference: the "Front End" sheet of the user's Google Sheets template (older, larger layout with build info and statistics was **replaced** by this simpler one).
+---
 
-## 5. App modules (8 nav items)
-1. Dashboard — stats, active project, quick actions
-2. Projects — CRUD, set active, choose **Project Type**:
-   - **Web App Testing**: starts empty (normal behavior).
-   - **Mobile App Testing**: automatically creates a default module called **"General mobile checks"** populated with its submodules, functionalities, and checks from `mobile_module.md`.
-3. Modules — CRUD, reorder
-4. Submodules — CRUD, reorder
-5. Functionalities — CRUD, reorder
-6. Actions — CRUD, reorder, test type
-7. Templates — **element-type templates**: each element type has a default set of actions: each default is the action text plus its separate test type and optional expected result. **Approved.**
-   - **Fixed element types (only these 7):** Text field, Button, Link, Checkbox, Radio button, Dropdown, Other (Other has no default checks).
-   - **Auto-create flow:** when adding a functionality, the user picks an **element type** from a dropdown and types the **element name**. The functionality is created with that name and its default actions are generated automatically. The element name is **NOT** inserted into the check text; default checks are copied as-is.
-   - **Source of defaults:** `default_checks.md` (Markdown, provided by the user in the workspace). Built-in defaults are seeded from it, not invented. Waiting for the file.
-8. **Test Survey (complex)** — validation, export config, live preview, Excel export
+## 4. Excel Output Template Specification
 
-## 5b. Example content rule
-All text in the user's Google Sheets template (module names, functionalities, actions, expected results like "Purchase button", "Voicemail application", etc.) is **placeholder/example only**. Do not hardcode it into the app. Built-in templates, if any, must be generic (e.g. a single "GUI check" placeholder) and fully editable/deletable; otherwise start empty.
+Each exported `.xlsx` workbook contains one worksheet tab per selected Module with **4 columns** (or 3 if Expected Result is toggled off):
 
-## 6. Test Survey module logic
-- **Validation:** error (blocks export) if no active project, no modules, or any functionality has 0 actions; warning if a module has no submodules or a submodule has no functionalities.
-- **Config:** choose modules, filter by test type, toggle Expected Result column, filename (default "Test Survey - {Project}").
-- **Preview:** HTML table mirroring the Excel output.
-- **Export:** one workbook, one sheet per selected module; cascade-delete in data layer.
+| Column | Header | Width | Formatting |
+|---|---|---|---|
+| **A** | `Test Type` | `16` | Centered; includes Excel Data Validation dropdown (`Smoke Test,MAT,AT`) |
+| **B** | `Functionality` | `26` | Vertically merged across all action rows for each functionality; middle-aligned, wrapped |
+| **C** | `Actions` | `58` | Check description text; left-aligned, text wrapping enabled |
+| **D** | `Expected Result` | `42` | Optional (may be left blank); left-aligned, text wrapping enabled |
 
-## 7. Open questions
-Resolved:
-- One project = one workbook, each module = a sheet tab. **Confirmed.**
-- Templates module included. **Confirmed.**
-- GitHub repo: https://github.com/Nyxsve-C/test-survey-creator.git (deploy via GitHub Pages).
+- **Row 1 (Header)**: Dark teal fill (`#386B78`), white bold text, frozen (`ySplit: 1`).
+- **Submodule Rows**: Medium-light teal fill (`#7FAEC0`) across all columns, submodule name in Column B.
+- **Data Rows**: White background, thin borders (`#90A4AE`).
 
-Still open:
-- Any extra columns/fields needed?
-- Waiting for `default_checks.md` in the workspace. Open: can the user edit default checks inside the app, or are they read-only?
+---
 
-## 8. Status
-Planning only. Project folder is empty (git repo only). Detailed plan: `implementation_plan.md` in the artifacts directory. No code written until the user approves.
+## 5. Application Modules (8 Navigation Items)
 
-## 9. default_checks.md (received)
-Location: `C:\Users\El Pinchepinche\Documents\a1qa_Projects\ai-qa\qa-web-application\default_checks.md` (the user's workspace; the agent works in a separate worktree folder).
-Contains checks (action text only) for: Text field (19, in 4 groups: Functionality, Validation, Spaces usage, Tabulation), Link (4), Button (5), Checkbox (4), Radio button (5), Dropdown (7). Other has none.
-The file has **no test type or expected result** per check. The leading numbers (1.1, 2.1...) are file numbering, not part of the action text.
+1. **Dashboard** — Active project summary, hierarchy counts, missing Test Type alerts, and 4-step QA workflow overview.
+2. **Projects** — Create, edit, delete, and set active project. Choose **Project Type**:
+   - **Web App Testing**: Starts empty.
+   - **Mobile App Testing**: Automatically creates the **"General mobile checks"** module seeded from `./mobile_default_module.md` (**18 submodules**, **22 functionalities**, **163 checks**).
+3. **Modules** — CRUD and up/down reordering for modules within the active project.
+4. **Submodules** — CRUD and up/down reordering for submodules within a selected module.
+5. **Functionalities** — Select an **Element Type** from the dropdown and enter the **Functionality Name**. Automatically generates the default checks for that element type (without inserting the element name into the text, and with blank Test Types) plus the locked final GUI check.
+6. **Actions** — View, add, edit, delete, and reorder checks; select **Test Type** via inline dropdowns; bulk-fill blank Test Types for the current **Functionality** or **Entire Module**.
+7. **Templates** — Inspect, add, edit, delete, or reset default checks for the **7 fixed Element Types**:
+   - `Text field` (16 default checks)
+   - `Button` (5 default checks)
+   - `Link` (4 default checks)
+   - `Checkbox` (4 default checks)
+   - `Radio button` (5 default checks)
+   - `Dropdown` (7 default checks)
+   - `Other` (0 default checks; still receives the locked final GUI check)
+8. **Test Survey ★ (Complex Business Logic)** — Multi-rule validation engine, export configuration (module selection, Test Type filter, Expected Result column toggle, custom filename), live multi-tab HTML worksheet preview, and ExcelJS `.xlsx` download.
 
-Decisions on default checks:
-- Default checks are created **without a test type** (blank); the user chooses the test type for each. Test type is required before export (validation error if blank), except the locked GUI check, which is always AT.
-- Text field group names are ignored: all 19 checks are created as a flat list.
-- Typos in the file are fixed when seeding the app (e.g. displayes, assotiated, selectd), and the numbering is dropped.
-- Open: build location. Final code must end up in the user's repo `C:\Users\El Pinchepinche\Documents\a1qa_Projects\ai-qa\qa-web-application` (connected to GitHub); needs access.
+---
 
-Final decisions:
-- Test type is chosen from a **dropdown**; export is **blocked** (error) while any check has no test type.
-- Build in the user's workspace `C:\Users\El Pinchepinche\Documents\a1qa_Projects\ai-qa\qa-web-application`, then deploy to GitHub (https://github.com/Nyxsve-C/test-survey-creator.git) via GitHub Pages.
+## 6. Seeded Data Sources in Workspace
+
+- **`./default_checks.md`**: Source of default checks for the 6 UI element types (`Text field`, `Link`, `Button`, `Checkbox`, `Radio button`, `Dropdown`). Group headings are ignored, typos are fixed, leading numbers and trailing periods are stripped, and `"Verify "` is prefixed.
+- **`./mobile_default_module.md`**: Source of the `"General mobile checks"` module for `Mobile App Testing` projects:
+  - `# Heading` → Submodule (18)
+  - `## Subheading` → Functionality (22)
+  - `- Bullet` → Action / Check (163, prefixed with `"Verify "` and no trailing period)
+- **Example Content Rule**: Any domain-specific text from external reference screenshots (e.g., `"Purchase button"`, `"Voicemail application"`) is treated strictly as layout reference and is never hardcoded into the application.
