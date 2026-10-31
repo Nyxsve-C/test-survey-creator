@@ -122,6 +122,7 @@ window.Views.actions = {
     const actions = DB.getActions(currentFunc.id);
     const unlockedCount = actions.filter(a => !a.locked).length;
     const missingCount = actions.filter(a => !a.testType).length;
+    const modMissingCount = DB.getActionsByModule(this.selectedModuleId).filter(a => !a.testType).length;
 
     const bulkTypeOpts = Defaults.TEST_TYPES.map(t =>
       `<option value="${Utils.escapeHtml(t)}">${Utils.escapeHtml(t)}</option>`
@@ -149,7 +150,10 @@ window.Views.actions = {
             ${bulkTypeOpts}
           </select>
           <button type="button" class="btn btn-secondary btn-sm" id="applyBulkTypeBtn" ${missingCount === 0 ? 'disabled' : ''}>
-            Apply to ${missingCount} blank
+            Functionality (${missingCount})
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="applyBulkModTypeBtn" ${modMissingCount === 0 ? 'disabled' : ''}>
+            Entire Module (${modMissingCount})
           </button>
         </div>
       </div>
@@ -221,7 +225,17 @@ window.Views.actions = {
       bulkBtn.onclick = () => {
         const chosenType = container.querySelector('#bulkTestTypeSelect').value;
         const updated = DB.bulkSetTestTypeForFunctionality(currentFunc.id, chosenType, true);
-        Utils.toast(`Assigned "${chosenType}" to ${updated} check(s)`, 'success');
+        Utils.toast(`Assigned "${chosenType}" to ${updated} check(s) in functionality`, 'success');
+        this.render(container);
+      };
+    }
+
+    const bulkModBtn = container.querySelector('#applyBulkModTypeBtn');
+    if (bulkModBtn) {
+      bulkModBtn.onclick = () => {
+        const chosenType = container.querySelector('#bulkTestTypeSelect').value;
+        const updated = DB.bulkSetTestTypeForModule(this.selectedModuleId, chosenType, true);
+        Utils.toast(`Assigned "${chosenType}" to ${updated} check(s) across the module`, 'success');
         this.render(container);
       };
     }

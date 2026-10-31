@@ -1,4 +1,4 @@
-// LocalStorage Data Layer with Cascade Deletes, Element Templates, and Locked GUI Check Enforcement
+// LocalStorage Data Layer with Cascade Deletes, Element Templates, Mobile Default Module, and Locked GUI Check Enforcement
 window.DB = (() => {
   const STORAGE_KEY = 'tsb_data_v1';
 
@@ -72,6 +72,63 @@ window.DB = (() => {
     return [...arr].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
+  // Helper: seed "General mobile checks" module from Defaults.MOBILE_DEFAULT_MODULE
+  function populateMobileDefaultModuleInState(state, projectId) {
+    const mobileSpec = Defaults.MOBILE_DEFAULT_MODULE;
+    if (!mobileSpec) return;
+
+    const existingMods = state.modules.filter(m => m.projectId === projectId);
+    const maxModOrder = existingMods.reduce((max, m) => Math.max(max, m.order || 0), 0);
+
+    const mod = {
+      id: Utils.uuid(),
+      projectId,
+      name: mobileSpec.name,
+      order: maxModOrder + 1
+    };
+    state.modules.push(mod);
+
+    mobileSpec.submodules.forEach((subSpec, subIdx) => {
+      const sub = {
+        id: Utils.uuid(),
+        projectId,
+        moduleId: mod.id,
+        name: subSpec.name,
+        order: subIdx + 1
+      };
+      state.submodules.push(sub);
+
+      subSpec.functionalities.forEach((funcSpec, funcIdx) => {
+        const func = {
+          id: Utils.uuid(),
+          projectId,
+          moduleId: mod.id,
+          submoduleId: sub.id,
+          name: funcSpec.name,
+          elementType: 'Mobile Check',
+          skipGuiCheck: true, // Non-UI/system mobile checks do not append the locked GUI check
+          order: funcIdx + 1
+        };
+        state.functionalities.push(func);
+
+        funcSpec.checks.forEach((checkText, actIdx) => {
+          state.actions.push({
+            id: Utils.uuid(),
+            projectId,
+            moduleId: mod.id,
+            submoduleId: sub.id,
+            functionalityId: func.id,
+            testType: '',
+            description: checkText,
+            expectedResult: '',
+            locked: false,
+            order: actIdx + 1
+          });
+        });
+      });
+    });
+  }
+
   // Active Project
   function getActiveProjectId() {
     const state = loadRaw();
@@ -107,21 +164,44 @@ window.DB = (() => {
   function saveProject(project) {
     const state = loadRaw();
     const now = new Date().toISOString();
+    const projectType = project.projectType || 'Web App Testing';
+
     if (project.id) {
       const idx = state.projects.findIndex(p => p.id === project.id);
       if (idx !== -1) {
-        state.projects[idx] = { ...state.projects[idx], name: project.name.trim(), updatedAt: now };
+        const prevType = state.projects[idx].projectType || 'Web App Testing';
+        state.projects[idx] = {
+          ...state.projects[idx],
+          name: project.name.trim(),
+          projectType,
+          updatedAt: now
+        };
+        // If switched to Mobile App Testing and no "General mobile checks" module exists yet, add it
+        if (
+          projectType === 'Mobile App Testing' &&
+          prevType !== 'Mobile App Testing' &&
+          !state.modules.some(m => m.projectId === project.id && m.name === Defaults.MOBILE_DEFAULT_MODULE.name)
+        ) {
+          populateMobileDefaultModuleInState(state, project.id);
+        }
         saveRaw(state);
         return state.projects[idx];
       }
     }
+
     const created = {
       id: Utils.uuid(),
       name: project.name.trim(),
+      projectType,
       createdAt: now,
       updatedAt: now
     };
     state.projects.push(created);
+
+    if (projectType === 'Mobile App Testing') {
+      populateMobileDefaultModuleInState(state, created.id);
+    }
+
     if (!state.activeProjectId) {
       state.activeProjectId = created.id;
     }
@@ -279,13 +359,21 @@ window.DB = (() => {
     saveRaw(state);
   }
 
-  // Helper: guarantee locked GUI check is present and always last for a functionality
+  // Helper: guarantee locked GUI check is present and always last (except on skipGuiCheck functionalities)
   function normalizeFunctionalityActionsInState(state, func) {
     const list = sortByOrder(state.actions.filter(a => a.functionalityId === func.id));
+
+    if (func.skipGuiCheck) {
+      list.forEach((act, idx) => {
+        act.order = idx + 1;
+        act.locked = false;
+      });
+      return;
+    }
+
     const unlocked = list.filter(a => !a.locked && !(a.description === Defaults.GUI_CHECK.description && a.testType === 'AT'));
     let lockedGui = list.find(a => a.locked) || list.find(a => a.description === Defaults.GUI_CHECK.description);
 
-    // Reassign sequential order 1..N for unlocked actions
     unlocked.forEach((act, idx) => {
       act.order = idx + 1;
       act.locked = false;
@@ -312,7 +400,6 @@ window.DB = (() => {
       lockedGui.order = unlocked.length + 1;
     }
 
-    // Remove any duplicate locked GUI entries if any existed
     const keepIds = new Set([...unlocked.map(a => a.id), lockedGui.id]);
     state.actions = state.actions.filter(a => a.functionalityId !== func.id || keepIds.has(a.id));
   }
@@ -341,7 +428,6 @@ window.DB = (() => {
     return state.functionalities.find(f => f.id === functionalityId) || null;
   }
 
-  // Creates or updates a functionality; when creating, automatically populates default checks + locked GUI check
   function saveFunctionality(func) {
     const state = loadRaw();
     const sub = state.submodules.find(s => s.id === func.submoduleId);
@@ -382,11 +468,11 @@ window.DB = (() => {
       submoduleId: func.submoduleId,
       name: func.name.trim(),
       elementType,
+      skipGuiCheck: false,
       order: maxOrder + 1
     };
     state.functionalities.push(created);
 
-    // Generate default checks for the chosen elementType (without testType, name NOT inserted in text)
     const templateChecks = state.elementTemplates[elementType] || [];
     templateChecks.forEach((tplItem, idx) => {
       state.actions.push({
@@ -395,7 +481,7 @@ window.DB = (() => {
         moduleId,
         submoduleId: created.submoduleId,
         functionalityId: created.id,
-        testType: '', // Blank by requirement: user selects from dropdown
+        testType: '',
         description: tplItem.description,
         expectedResult: tplItem.expectedResult || '',
         locked: false,
@@ -403,7 +489,6 @@ window.DB = (() => {
       });
     });
 
-    // Always append locked GUI check as the last action (even for 'Other' or 0 default checks)
     state.actions.push({
       id: Utils.uuid(),
       projectId,
@@ -470,7 +555,6 @@ window.DB = (() => {
       const idx = state.actions.findIndex(a => a.id === action.id);
       if (idx !== -1) {
         if (state.actions[idx].locked) {
-          // Locked GUI check cannot be edited
           return state.actions[idx];
         }
         state.actions[idx] = {
@@ -485,7 +569,6 @@ window.DB = (() => {
       }
     }
 
-    // Insert new unlocked action before the locked GUI check
     const existingUnlocked = state.actions.filter(a => a.functionalityId === func.id && !a.locked);
     const created = {
       id: Utils.uuid(),
@@ -528,6 +611,21 @@ window.DB = (() => {
     return count;
   }
 
+  function bulkSetTestTypeForModule(moduleId, testType, onlyBlank = true) {
+    const state = loadRaw();
+    let count = 0;
+    state.actions.forEach(a => {
+      if (a.moduleId === moduleId && !a.locked) {
+        if (!onlyBlank || !a.testType) {
+          a.testType = testType;
+          count++;
+        }
+      }
+    });
+    saveRaw(state);
+    return count;
+  }
+
   function moveAction(actionId, direction) {
     const state = loadRaw();
     const target = state.actions.find(a => a.id === actionId);
@@ -535,7 +633,6 @@ window.DB = (() => {
     const func = state.functionalities.find(f => f.id === target.functionalityId);
     if (!func) return;
 
-    // Only unlocked actions can be reordered; locked GUI check always stays last
     const unlocked = sortByOrder(state.actions.filter(a => a.functionalityId === func.id && !a.locked));
     const idx = unlocked.findIndex(a => a.id === actionId);
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
@@ -562,7 +659,7 @@ window.DB = (() => {
     return true;
   }
 
-  // Element Templates (7 fixed element types)
+  // Element Templates
   function getElementTemplates() {
     const state = loadRaw();
     return state.elementTemplates;
@@ -669,6 +766,7 @@ window.DB = (() => {
     saveAction,
     updateActionTestType,
     bulkSetTestTypeForFunctionality,
+    bulkSetTestTypeForModule,
     moveAction,
     deleteAction,
     getElementTemplates,

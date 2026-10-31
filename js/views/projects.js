@@ -1,11 +1,11 @@
-// Module 2: Projects View
+// Module 2: Projects View (Supports Web App Testing & Mobile App Testing Project Types)
 window.Views = window.Views || {};
 
 window.Views.projects = {
   render(container) {
     App.setHeader(
       'Projects',
-      'Each project exports as one Test Survey Excel workbook (.xlsx)',
+      'Each project exports as one Test Survey Excel workbook (.xlsx) — choose Web App or Mobile App Testing',
       `<button type="button" class="btn btn-primary" id="newProjectBtn">+ New Project</button>`
     );
 
@@ -19,7 +19,7 @@ window.Views.projects = {
         <div class="card">
           <div class="empty-state">
             <h3>No Projects Yet</h3>
-            <p>Create your first project to begin adding modules, submodules, functionalities, and checks.</p>
+            <p>Create your first project (Web App Testing or Mobile App Testing) to begin adding modules, submodules, functionalities, and checks.</p>
             <button type="button" class="btn btn-primary" id="emptyNewProjectBtn">+ Create Project</button>
           </div>
         </div>
@@ -31,11 +31,18 @@ window.Views.projects = {
     const rowsHtml = projects.map(p => {
       const isActive = p.id === activeId;
       const stats = DB.getStats(p.id);
+      const pType = p.projectType || 'Web App Testing';
+      const isMobile = pType === 'Mobile App Testing';
       return `
         <tr>
           <td>
             <strong>${Utils.escapeHtml(p.name)}</strong>
             ${isActive ? '<span class="badge badge-success" style="margin-left:0.5rem;">Active</span>' : ''}
+          </td>
+          <td>
+            <span class="badge ${isMobile ? 'badge-submod' : 'badge-teal'}">
+              ${isMobile ? '📱 ' : '🌐 '}${Utils.escapeHtml(pType)}
+            </span>
           </td>
           <td>${stats.modules}</td>
           <td>${stats.submodules}</td>
@@ -59,6 +66,7 @@ window.Views.projects = {
           <thead>
             <tr>
               <th>Project Name</th>
+              <th>Project Type</th>
               <th>Modules</th>
               <th>Submodules</th>
               <th>Functionalities</th>
@@ -108,7 +116,21 @@ window.Views.projects = {
 
   openProjectModal(existing = null) {
     const isEdit = Boolean(existing);
+    const currentType = existing?.projectType || 'Web App Testing';
+
+    const typeOpts = Defaults.PROJECT_TYPES.map(t =>
+      `<option value="${Utils.escapeHtml(t)}" ${t === currentType ? 'selected' : ''}>${Utils.escapeHtml(t)}</option>`
+    ).join('');
+
     const html = `
+      <div class="form-field">
+        <label class="form-label" for="projTypeSelect">Project Type *</label>
+        <span class="form-hint">
+          <strong>Web App Testing:</strong> starts empty.<br>
+          <strong>Mobile App Testing:</strong> automatically adds the <em>"General mobile checks"</em> module with 18 submodules, 22 functionalities, and 163 checks.
+        </span>
+        <select id="projTypeSelect" name="projectType" class="form-select" required>${typeOpts}</select>
+      </div>
       <div class="form-field">
         <label class="form-label" for="projNameInput">Project Name *</label>
         <span class="form-hint">Used for the exported Excel workbook filename (e.g. "Test Survey - Project Name").</span>
@@ -131,11 +153,19 @@ window.Views.projects = {
       html,
       (form) => {
         const name = form.elements.name.value.trim();
+        const projectType = form.elements.projectType.value;
         if (!name) return false;
-        const saved = DB.saveProject({ id: existing?.id, name });
+        const saved = DB.saveProject({ id: existing?.id, name, projectType });
         DB.setActiveProjectId(saved.id);
         App.refreshProjectSelector();
-        Utils.toast(isEdit ? 'Project updated' : 'Project created', 'success');
+        Utils.toast(
+          isEdit
+            ? 'Project updated'
+            : (projectType === 'Mobile App Testing'
+                ? 'Mobile project created with "General mobile checks" module!'
+                : 'Web project created'),
+          'success'
+        );
         App.navigate(App.currentView || 'projects');
         return true;
       },

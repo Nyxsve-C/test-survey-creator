@@ -53,7 +53,7 @@ window.Views.dashboard = {
         <div class="stat-card">
           <span class="stat-label">Active Project</span>
           <span class="stat-value" style="font-size:1.25rem;">${Utils.escapeHtml(activeProject.name)}</span>
-          <span class="stat-meta">${stats.totalProjects} total project(s)</span>
+          <span class="stat-meta">${Utils.escapeHtml(activeProject.projectType || 'Web App Testing')} · ${stats.totalProjects} total</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Modules (Sheet Tabs)</span>

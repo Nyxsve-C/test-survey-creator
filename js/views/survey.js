@@ -117,7 +117,7 @@ window.Views.survey = {
               sub,
               reason: `Functionality "${func.name}" has 0 actions.`
             });
-          } else {
+          } else if (!func.skipGuiCheck) {
             const lastAct = actions[actions.length - 1];
             if (
               lastAct.description !== Defaults.GUI_CHECK.description ||

@@ -40,7 +40,9 @@ Test types: Smoke Test, MAT, AT.
 
 ## 5. App modules (8 nav items)
 1. Dashboard — stats, active project, quick actions
-2. Projects — CRUD, set active
+2. Projects — CRUD, set active, choose **Project Type**:
+   - **Web App Testing**: starts empty (normal behavior).
+   - **Mobile App Testing**: automatically creates a default module called **"General mobile checks"** populated with its submodules, functionalities, and checks from `mobile_module.md`.
 3. Modules — CRUD, reorder
 4. Submodules — CRUD, reorder
 5. Functionalities — CRUD, reorder
