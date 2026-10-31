@@ -43,9 +43,19 @@ window.DB = (() => {
         for (const elType of Defaults.ELEMENT_TYPES) {
           if (!Array.isArray(parsed.elementTemplates[elType])) {
             parsed.elementTemplates[elType] = buildInitialTemplates()[elType] || [];
+          } else {
+            parsed.elementTemplates[elType] = parsed.elementTemplates[elType].map(item => ({
+              ...item,
+              description: Defaults.formatCheckText(item.description)
+            }));
           }
         }
       }
+      parsed.actions.forEach(a => {
+        if (!a.locked && a.description) {
+          a.description = Defaults.formatCheckText(a.description);
+        }
+      });
       return parsed;
     } catch (e) {
       console.error('Failed to read localStorage:', e);
@@ -560,7 +570,7 @@ window.DB = (() => {
         state.actions[idx] = {
           ...state.actions[idx],
           testType: action.testType || '',
-          description: action.description.trim(),
+          description: Defaults.formatCheckText(action.description),
           expectedResult: (action.expectedResult || '').trim()
         };
         normalizeFunctionalityActionsInState(state, func);
@@ -577,7 +587,7 @@ window.DB = (() => {
       submoduleId: func.submoduleId,
       functionalityId: func.id,
       testType: action.testType || '',
-      description: action.description.trim(),
+      description: Defaults.formatCheckText(action.description),
       expectedResult: (action.expectedResult || '').trim(),
       locked: false,
       order: existingUnlocked.length + 1
@@ -676,7 +686,7 @@ window.DB = (() => {
     const list = state.elementTemplates[elementType] || [];
     const item = {
       id: Utils.uuid(),
-      description: description.trim(),
+      description: Defaults.formatCheckText(description),
       expectedResult: (expectedResult || '').trim()
     };
     list.push(item);
@@ -692,7 +702,7 @@ window.DB = (() => {
     if (idx !== -1) {
       list[idx] = {
         ...list[idx],
-        description: description.trim(),
+        description: Defaults.formatCheckText(description),
         expectedResult: (expectedResult || '').trim()
       };
       saveRaw(state);
